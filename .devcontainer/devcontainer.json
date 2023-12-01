@@ -1,0 +1,12 @@
+{
+    "name": "latex-space",
+    "image":"blang/latex",
+    "customizations": {
+        "vscode": {
+            "extensions": [
+                "james-yu.latex-workshop",
+                "github.copilot"
+            ]
+        }
+    }
+}
