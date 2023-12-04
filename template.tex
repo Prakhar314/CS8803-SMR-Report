@@ -56,24 +56,11 @@
 }
 \else
 % Multiple affiliations variant of author block
-\usepackage{authblk}
-\renewcommand\Authfont{\bfseries}
-\setlength{\affilsep}{0em}
-% box is needed for correct spacing with authblk
-\newbox{\orcid}\sbox{\orcid}{\includegraphics[scale=0.06]{orcid.pdf}} 
-\author[1]{%
-	\href{https://orcid.org/0000-0000-0000-0000}{\usebox{\orcid}\hspace{1mm}David S.~Hippocampus\thanks{\texttt{hippo@cs.cranberry-lemon.edu}}}%
-}
-\author[1,2]{%
-	\href{https://orcid.org/0000-0000-0000-0000}{\usebox{\orcid}\hspace{1mm}Elias D.~Striatum\thanks{\texttt{stariate@ee.mount-sheikh.edu}}}%
-}
-\affil[1]{Department of Computer Science, Cranberry-Lemon University, Pittsburgh, PA 15213}
-\affil[2]{Department of Electrical Engineering, Mount-Sheikh University, Santa Narimana, Levand}
 \fi
 
 % Uncomment to override  the `A preprint' in the header
-\renewcommand{\headeright}{Technical Report}
-\renewcommand{\undertitle}{Technical Report}
+\renewcommand{\headeright}{Technical Report - CS 8803-SMR}
+\renewcommand{\undertitle}{Technical Report - CS 8803-SMR}
 \renewcommand{\shorttitle}{\textit{arXiv} Template}
 
 %%% Add PDF metadata to help others organize their library
@@ -90,7 +77,7 @@ pdfkeywords={First keyword, Second keyword, More},
 \maketitle
 
 \begin{abstract}
-	\lipsum[1]
+
 \end{abstract}
 
 
@@ -99,84 +86,22 @@ pdfkeywords={First keyword, Second keyword, More},
 
 
 \section{Introduction}
-\lipsum[2]
-\lipsum[3]
 
 
-\section{Headings: first level}
-\label{sec:headings}
+\section{Related Work}
 
-\lipsum[4] See Section \ref{sec:headings}.
+\section{High Level Design}
 
-\subsection{Headings: second level}
-\lipsum[5]
-\begin{equation}
-	\xi _{ij}(t)=P(x_{t}=i,x_{t+1}=j|y,v,w;\theta)= {\frac {\alpha _{i}(t)a^{w_t}_{ij}\beta _{j}(t+1)b^{v_{t+1}}_{j}(y_{t+1})}{\sum _{i=1}^{N} \sum _{j=1}^{N} \alpha _{i}(t)a^{w_t}_{ij}\beta _{j}(t+1)b^{v_{t+1}}_{j}(y_{t+1})}}
-\end{equation}
+\section{Low Level Design}
 
-\subsubsection{Headings: third level}
-\lipsum[6]
+\section{Implementation}
 
-\paragraph{Paragraph}
-\lipsum[7]
+\section{Evaluation and Benchmarks}
 
+\section{Future Work}
+\subsection{Multi GPU Design}
 
-
-\section{Examples of citations, figures, tables, references}
-\label{sec:others}
-
-\subsection{Citations}
-Citations use \verb+natbib+. The documentation may be found at
-\begin{center}
-	\url{http://mirrors.ctan.org/macros/latex/contrib/natbib/natnotes.pdf}
-\end{center}
-
-Here is an example usage of the two main commands (\verb+citet+ and \verb+citep+): Some people thought a thing \citep{kour2014real, keshet2016prediction} but other people thought something else \citep{kour2014fast}. Many people have speculated that if we knew exactly why \citet{kour2014fast} thought this\dots
-
-\subsection{Figures}
-\lipsum[10]
-See Figure \ref{fig:fig1}. Here is how you add footnotes. \footnote{Sample of the first footnote.}
-\lipsum[11]
-
-\begin{figure}
-	\centering
-	\fbox{\rule[-.5cm]{4cm}{4cm} \rule[-.5cm]{4cm}{0cm}}
-	\caption{Sample figure caption.}
-	\label{fig:fig1}
-\end{figure}
-
-\subsection{Tables}
-See awesome Table~\ref{tab:table}.
-
-The documentation for \verb+booktabs+ (`Publication quality tables in LaTeX') is available from:
-\begin{center}
-	\url{https://www.ctan.org/pkg/booktabs}
-\end{center}
-
-
-\begin{table}
-	\caption{Sample table title}
-	\centering
-	\begin{tabular}{lll}
-		\toprule
-		\multicolumn{2}{c}{Part}                   \\
-		\cmidrule(r){1-2}
-		Name     & Description     & Size ($\mu$m) \\
-		\midrule
-		Dendrite & Input terminal  & $\sim$100     \\
-		Axon     & Output terminal & $\sim$10      \\
-		Soma     & Cell body       & up to $10^6$  \\
-		\bottomrule
-	\end{tabular}
-	\label{tab:table}
-\end{table}
-
-\subsection{Lists}
-\begin{itemize}
-	\item Lorem ipsum dolor sit amet
-	\item consectetur adipiscing elit.
-	\item Aliquam dignissim blandit est, in dictum tortor gravida eget. In ac rutrum magna.
-\end{itemize}
+\section{Conclusion}
 
 
 \bibliographystyle{unsrtnat}
