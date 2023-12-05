@@ -145,7 +145,7 @@ Userspace and those managed by Ravenstore as those lying in Ravenspace. Applicat
 		\item If tensor is not already present, then Ravenstore will fetch the tensor from CPU memory to GPU device.
 		\item And the tensor would be moved to Userspace and handed over to the user.
 	\end{itemize}
-	The second step, i.e., when tensor is not already present, incurs high latency when moving the tensor to GPU.
+	The second step, i.e., when tensor is not already present on GPU, incurs high latency when moving the tensor to GPU.
 	This will hugely increase training/inference time of models on the clients. In other to avoid that, we have prefetching mechanisms.
 	Clients will need to specify the time they will need the tensors (through Put API) again in future, and Memory Harvesting framework will
 	fetch those tensors beforehand if possible to avoid delays in Get() API call.
@@ -154,6 +154,19 @@ Userspace and those managed by Ravenstore as those lying in Ravenspace. Applicat
 \section{Related Work}
 
 \section{High Level Design}
+Ravenstore consists of three components, Client, Daemon and Interceptor. Client makes API calls, 
+these calls go through Shared IPC and Daemon (or Server) acts according to the calls like allocating tensors,
+bringing them to GPU, deleting them, performing eviction, etc. Ravenstore manages two ways:
+\begin{itemize}
+	\item \textbf{Interception}: Ravenstore intercepts CUDAMalloc and CUDAFree calls from clients
+	and allocates/deallocates tensors. Here Ravenstore Interceptor comes into play. But tensors are not managed by ravenstore for memory harvesting purposes.
+	\item \textbf{Client APIs}: Here clients make API calls and memory harvesting is done based on calls received by the Daemon.
+\end{itemize}
+For more in-depth overview of architecture of Ravenstore, please refer Ravenstore Final Report document <REF>.
+Now we discuss high level design of memory harvesting technique implemented alongside Ravenstore.
+
+\subsection{Memory Harvesting Design Overview}
+
 
 \section{Low Level Design}
 
