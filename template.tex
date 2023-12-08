@@ -80,7 +80,8 @@ pdfkeywords={First keyword, Second keyword, More},
 \begin{abstract}
 The computational capacity of GPUs has been increasing over the past recent years, however, the memory capacity
 has remained almost the same. On the other hand, both the compute and memory requirements of
-models has been increasing steadily over over the years. Hence there is need for 
+models has been increasing steadily over over the years. This makes the GPU memory a 
+precious resource while training deep learning models. Hence there is need for 
 Memory Harvesting of GPUs to allow training large models despite memory contraints. We
 currenlty focus on harvesting memory on a single GPU and then can extend to multi-GPU scenario.
 We also demonstrate how we perform eviction, prefetching of tensors and measure the overhead
@@ -89,42 +90,53 @@ of Ravenstore when training models.
 
 
 % keywords can be removed
-\keywords{Memory Harvesting \and Caching Policies \and Prefetching Policies}
+\keywords{Memory Harvesting \and Caching \and Prefetching \and Offloading}
 
 
 \section{Introduction}
 \subsection{Motivation}
 Our Memory Harvesting technique is meant to help large models train on GPUs with limited capacity.
 We leverage the following key insights in order to help define our design goals:
-\begin{itemize}
-	\item \textbf{Limited Memory Growth}: <TODO: Paste figure as on slides> As shown in figure <REF>, for state of 
+	\subsubsection{Limited Memory Growth}As shown in figure <REF>, for state of 
 	art GPUs, there is drastic increase in TeraFLOPS across different GPUs, but memory increase is negligible.
 	This implies that we might be able to meet compute requirements of the models better than their memory requirements.
 	Hence, there is a need for a way to address the issue of limited memory without hampering model's training and performance.
-	\item \textbf{Highly Skewed Memory Utilization}: <TODO: Paste figure as on report> 
+	\begin{figure}[!htbp]
+		\centering
+		\includegraphics[height=6cm, width=7cm]{figures/AlibabaUtil.png}
+		\caption{Sequence Diagram for Offloading}
+	\end{figure}
+	\FloatBarrier
+
+	\subsubsection{Highly Skewed Memory Utilization}
 	Even though workloads suffer from memory bottlenecks, several studies have shown that, in production clusters, memory utilization
 	is suboptimal. For example, as shown in figure <REF>, in Alibaba's production cluster, only 20\% of GPUs have applications
 	utilizing over 80\% of their memory. There is need to harvest underutilized GPUs to support applications requiring 
 	higher amount of GPU memory than is available.
-	\item \textbf{Naive Eviction/Prefetching Policies}: In other to swap tensors out to GPU memory to give space for other tensors needed by application,
-	policies like LRU can be used to decide what tensors to evict. However, these policies are naive because they don't take into account the following factors:
+	\begin{figure}[!htbp]
+		\centering
+		\includegraphics[height=8cm, width=8cm]{figures/Offloading.drawio.png}
+		\caption{Sequence Diagram for Offloading}
+	\end{figure}
+	\FloatBarrier
+
+	\subsubsection{Naive Eviction/Prefetching Policies} In other to swap tensors out to GPU memory to give space for other tensors needed by application,
+	policies like LRU can be used to decide what tensors to evict. However, these policies are naive because they don't take into account the following two factors:
 	\begin{itemize}
 		\item \textbf{Heterogeneous Size of Tensors}: LRU policy might only evict tensor which was least recently used. However, 
 		if the size of this tensor was in KBs, it could have done better by evicting a larger tensor (whose size is in MBs/GBs) instead. Similarly,
 		LRU might swap out a very large tensor (running into GBs) to make space a small tensor whose size maybe in bytes.
-		\item \textbf{Latency Awareness}: The pattern of usage of tensors is quite predictive when training models, and the pattern is repetitive. For example,
+		\item \textbf{Latency Awareness}: The pattern of usage of tensors is quite predictive when training models [Potential Citation], and the pattern is repetitive. For example,
 		when training a deep neural network, we can offload activations generated at each layer to CPU because they are not going to be required before backward propagation phase.
 		Now, since we know that activations which were generated most recently (i.e. from last layer), would be needed first.
 		A smart prefetching policy will know this pattern, and decide to prefetch activations starting from the last layer.
 	\end{itemize}
-\end{itemize}
 
 \subsection{Design Decisions}
 With above issues in mind, we propose the following design decisions to mitigate these issues and maximize
 the utility of the system. For the sake of interpretability, we will refer to tensors not managed by Ravenstore as those lying in
 Userspace and those managed by Ravenstore as those lying in Ravenspace. Applications can only use tensors present in user space.
-\begin{itemize}
-	\item \textbf{APIs}: Clients/Applications are provided with the following four APIs to help manage tensors for memory harvesting purposes:
+	\subsubsection{APIs}Clients/Applications are provided with the following four APIs to help manage tensors for memory harvesting purposes:
 	\begin{itemize}
 		\item \textbf{Create}: Whenever clients want new tensors, they can call create with specified size and Ravenstore will
 		create space for those tensors.
@@ -134,13 +146,13 @@ Userspace and those managed by Ravenstore as those lying in Ravenspace. Applicat
 		they can call put API to allow moving tensors back to Ravenspace and Ravenstore can do whatever it wants to ensure maximum GPU utilization and low latency.
 		\item \textbf{Free}: When clients don't need tensors at all, they can call free API to delete the tensor.
 	\end{itemize}
-	\item \textbf{Abstraction}: Whatever Ravenstore with Memory Harvesting does underneath with the tensors created by applications is completely
+	\subsubsection{Abstraction}Whatever Ravenstore with Memory Harvesting does underneath with the tensors created by applications is completely
 	unknown to them. Neither the applications should care about that. All they need is the following:
 	\begin{itemize}
 		\item Tensors must be available to them when they call get() API.
-		\item All other APIs must work as expected without interfering with clients' normal program run.
+		\item All other APIs must work as expected without interfering with clients' program as well as the programs not managed by Ravenstore.
 	\end{itemize}
-	\item \textbf{Low Latency in Get API}: When clients call get() when they need tensors for further computations on their GPU, Memory Harvesting implementation does the following:
+	\subsubsection{Low Latency in Get API} When clients call get() when they need tensors for further computations on their GPU, Memory Harvesting implementation does the following:
 	\begin{itemize}
 		\item Check if tensor is already present on GPU device where the client is running.
 		\item If tensor is not already present, then Ravenstore will fetch the tensor from CPU memory to GPU device.
@@ -150,24 +162,72 @@ Userspace and those managed by Ravenstore as those lying in Ravenspace. Applicat
 	This will hugely increase training/inference time of models on the clients. In other to avoid that, we have prefetching mechanisms.
 	Clients will need to specify the time they will need the tensors (through Put API) again in future, and Memory Harvesting framework will
 	fetch those tensors beforehand if possible to avoid delays in Get() API call.
-\end{itemize}
 
 \section{Related Work}
 \cite[][]{shuklasingularity}
 
+Mention Singularity, Deepspeed, Zero Infinity, Accelerate, Flexgen
+
 \section{High Level Design}
-Ravenstore consists of three components, Client, Daemon and Interceptor. Client makes API calls, 
-these calls go through Shared IPC and Daemon (or Server) acts according to the calls like allocating tensors,
-bringing them to GPU, deleting them, performing eviction, etc. Ravenstore manages two ways:
+\begin{figure}[!htbp]
+	\centering
+	\includegraphics[height=6cm, width=8cm]{figures/ravenspace.png}
+	\caption{A visual description of Userspace and Ravenspace}
+\end{figure}
+We divide the space in which our tensors exist into two partitions, Userspace and Ravenspace.
+Whenever a tensor is created, it is created in the Userspace. By default all intercepted mallocs 
+are allocated in the Userspace. The tensors in the Userspace are not managed by Ravenstore. 
+The tensors allocated in the Userspace will continue to be in the GPU and accessible the handle to 
+the tensor until it is explicitly freed by the User.
+
+Ravenspace on the other hand is managed by Ravenstore. Once a tensor is put into Ravenspace the user
+can only access it again once they call the get API. The get API will bring the tensor back to the GPU if it was evicted
+and then back in the Userspace where the user can use the handle to access the tensor. Hence, tensors in 
+Ravenspace are immutable.
+
+Tensor in the Userspace are first class citizens of the system i.e. if we find that the GPU memory is full,
+we will offload the tensors from the Ravenspace to make room for them. If we still cannot allocate a tensor in Userspace,
+means that we are out of GPU memory and user has to free some of their tensors to make room.
+
+\begin{figure}[!htbp]
+	\centering
+	\includegraphics[height=6cm, width=7cm]{figures/hld.png}
+	\caption{High Level System Design}
+\end{figure}
+%\FloatBarrier
+
+Our design consists of three components, Client, Server and Interceptor. Client provides an interface to the users and makes API calls, 
+these calls go through the Shared IPC and then the Server acts according to the calls like allocating tensors,
+bringing them to GPU, deleting them, performing eviction and other actions. 
+
+\subsection{Tensor Handling}
+There are two ways in which our GPU memory management system onboards tensors
 \begin{itemize}
 	\item \textbf{Interception}: Ravenstore intercepts CUDAMalloc and CUDAFree calls from clients
 	and allocates/deallocates tensors. Here Ravenstore Interceptor comes into play. But tensors are not managed by ravenstore for memory harvesting purposes.
-	\item \textbf{Client APIs}: Here clients make API calls and memory harvesting is done based on calls received by the Daemon.
+	\item \textbf{Client}: Here clients make API calls and memory harvesting is done based on calls received by the Server.
 \end{itemize}
-For more in-depth overview of architecture of Ravenstore, please refer Ravenstore Final Report document <REF>.
-Now we discuss high level design of memory harvesting technique implemented alongside Ravenstore.
 
-\subsection{Memory Harvesting Design Overview}
+Now we discuss high level design of memory harvesting technique implemented component wise.
+
+\subsection{Client}
+
+
+\subsection{Server}
+The server is responsible for the physical allocation of the tensors, prefetching and eviction of tensors.
+The server is connected to a base client that is connected to the interceptor. The intercepted tensors are
+never put in the Ravenspace. Interception implies that the tensors belong the a process that is not Ravenstore managed i.e.
+they are always in userspace for their lifetime.
+We still need to keep track of all the tensors since we are attempting to do tensor management at GPU level, i.e. all tensors
+need to be tracked.
+
+The server is also connected to cache client via python bindings. We use python bindings to easily test and benchmark different
+caching policies on the system. While the python bindings come at the obvious cost of latency the ease with which this will allow us 
+to implement our policies for our further work is why we went in this direction.
+
+In the next section we discuss some low level design of the interesting and technically
+challenging problems we solved in the process.
+
 
 
 \section{Low Level Design}
