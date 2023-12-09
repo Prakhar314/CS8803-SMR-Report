@@ -211,7 +211,13 @@ There are two ways in which our GPU memory management system onboards tensors
 Now we discuss high level design of memory harvesting technique implemented component wise.
 
 \subsection{Client}
+The client provides the interface to the user to make the required API calls. We have described these calles in Section 1.2.1.
+The client stores the virtual pointers to all the tensors that are created by the user via the Create call. The virtual pointer is
+responsible for setting the access to the tensor. We can specify the access to a tensor in READ\_ONLY or READ\_WRITE mode. 
+Trying to access or free a tensor in Ravenspace will lead to an exception since when putting a tensor into Ravenspace implies letting our
+system take control of it.
 
+The client makes calls to the server via the IPC since they are two different processes that share pointers. We discuss IPC in more detail in section 4.1.
 
 \subsection{Server}
 The server is responsible for the physical allocation of the tensors, prefetching and eviction of tensors.
