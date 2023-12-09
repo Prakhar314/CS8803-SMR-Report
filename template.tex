@@ -225,12 +225,19 @@ The server is also connected to cache client via python bindings. We use python 
 caching policies on the system. While the python bindings come at the obvious cost of latency the ease with which this will allow us 
 to implement our policies for our further work is why we went in this direction.
 
-In the next section we discuss some low level design of the interesting and technically
-challenging problems we solved in the process.
+In the next section we discuss some low level design and implementation
+of the interesting and technically challenging problems we solved in the process.
 
 
+\section{Low Level Design and Implementation details}
 
-\section{Low Level Design}
+
+Now that our high level design is in place, we discuss some of the low level design decisions we made
+while creating various components of our system.
+
+\subsection{IPC}
+
+\subsection{Offloading}
 \begin{figure}[!htbp]
 	\centering
 	\includegraphics[height=8cm, width=8cm]{figures/Offloading.drawio.png}
@@ -238,8 +245,9 @@ challenging problems we solved in the process.
 \end{figure}
 \FloatBarrier
 
+\subsection{Prefetching}
 
-\section{Implementation}
+
 
 \section{Evaluation and Benchmarks}
 
