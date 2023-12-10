@@ -364,23 +364,21 @@ Removing data copying and callbacks from the client side for our design change. 
 \subsection{Prakhar Jagwani (HD, AA)}
 \subsection{Anmol Agarwal (PJ, HD)}
 Anmol worked on the following things:
-\begin{itemize}
-	\item Help in fixing memory leak bug and raising PR with bug fix. Also resolved initial comments on the PR from Amey and Alan.
-	\item Helped in proposing initial FSM (Finite State Machine) describing states of tensors and transitions through client API calls
-	of allocate, get, put and free.
-	\item Implemented policies for caching and eviction such as FIFO, LRU, and Latency-Aware in C++ (ServerAllocator.cpp)
-	\item Created dummy get/put API calls from Client side. The API calls were further enhanced by Hersh and Prakhar.
-	\item On suggestion of Alan and Amey, moved the implementation of eviction policies to Python through pybind11 (manager.py).
-	\item Modify CMAKE files to use pybind11 and further enhanced ServerAllocator.cpp code to make API calls in Python code.
-	\item Also implemented prefetching policies in Python by inconporating latency awareness using sortedcontainers library.
-	\item Helped in proposing new design to implement Prefetching mechanism and avoid callbacks to clients when doing prefetching.
-	Callbacks were earlier needed to map tensors from client's side and moving them back to GPU through virtual handle. But instead,
-	we decided to create virtual handle from Server to move tensors to GPU, hence avoiding callbacks.
-	\item Helped in integrating prefetching functionality inside ServerAllocator.cpp and resolve bugs related to prefetching mechanisms.
-	\item Collaborated with team members and helped in demo and project report (specifically in sections like Introduction, High Level Design,
-	Evaluation and Benchmarks, and Future Work).
-	\item Helped in designing experiment (more specifically experiment measuring Eviction and Prefetching Overhead).
-\end{itemize}
+Help in fixing memory leak bug and raising PR with bug fix. Also resolved initial comments on the PR from Amey and Alan.
+Helped in proposing initial FSM (Finite State Machine) describing states of tensors and transitions through client API calls
+of allocate, get, put and free.
+Implemented policies for caching and eviction such as FIFO, LRU, and Latency-Aware in C++ (ServerAllocator.cpp)
+Created dummy get/put API calls from Client side. The API calls were further enhanced by Hersh and Prakhar.
+On suggestion of Alan and Amey, moved the implementation of eviction policies to Python through pybind11 (manager.py).
+Modified CMAKE files to use pybind11 and further enhanced ServerAllocator.cpp code to make API calls in Python code.
+Also implemented prefetching policies in Python by inconporating latency awareness using sortedcontainers library.
+Helped in proposing new design to implement Prefetching mechanism and avoid callbacks to clients when doing prefetching.
+Callbacks were earlier needed to map tensors from client's side and moving them back to GPU through virtual handle. But instead,
+we decided to create virtual handle from Server to move tensors to GPU, hence avoiding callbacks.
+Helped in integrating prefetching functionality inside ServerAllocator.cpp and resolve bugs related to prefetching mechanisms.
+Collaborated with team members and helped in demo and project report (specifically in sections like Introduction, High Level Design,
+Evaluation and Benchmarks, and Future Work).
+Helped in designing experiment (more specifically experiment measuring Eviction and Prefetching Overhead).
 
 \printbibliography
 
