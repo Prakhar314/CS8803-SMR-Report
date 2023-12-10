@@ -1,6 +1,6 @@
 {
     "name": "latex-space",
-    "image":"blang/latex",
+    "build": { "dockerfile": "Dockerfile" },
     "customizations": {
         "vscode": {
             "extensions": [
