@@ -170,7 +170,21 @@ Userspace and those managed by Ravenstore as those lying in Ravenspace. Applicat
 \section{Related Work}
 \cite{shuklasingularity}
 
-Mention Singularity, Deepspeed, Zero Infinity, Accelerate, Flexgen
+Recent deep learning training systems built for training large language models like ZeRO [1, 2] and FSDP [3, 4] use sharding and offloading of 
+GPU memory to CPU memory or NVMe drives to reduce the active memory pressure in DL workloads. However, these solutions are highly customized 
+for specific workloads and require non-trivial engineering efforts to support new applications. Systems like GPUSwap [12]  and CUDA unified 
+memory [8]  can be utilized to build a general-purpose offloading system, however, these systems utilize simple cache eviction strategies 
+like random or LRU and not take advantage of the predictable access patterns of DL workloads.
+
+There are other works that implementation offloading. Accelerate is a library available on huggingface that does layer by layer offloading 
+which helps in training large models where atleast one layers fits in the GPU memory at a time. ZeRO-Infinity introduces a novel GPU memory 
+optimization technique called memory-centric tiling to support extremely large individual layers that would otherwise not fit in GPU memory 
+even one layer at a time.
+
+While they are all great works, they are all limited to one DL process at a time, not the entire GPU. These can lead to starvation of other
+GPU processes since they take as much GPU as possible before. We show that our solution handles this on the GPU level and provides a
+way to handle multiple processes without starvation.
+
 
 \section{High Level Design}
 \begin{figure}[!htbp]
