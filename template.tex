@@ -13,10 +13,15 @@
 \usepackage{cleveref}       % smart cross-referencing
 \usepackage{lipsum}         % Can be removed after putting your text content
 \usepackage{graphicx}
-\usepackage{natbib}
+\usepackage[english]{babel}
+\usepackage[
+backend=biber,
+style=alphabetic,
+sorting=ynt
+]{biblatex}
 \usepackage{doi}
 \usepackage{placeins}
-
+\addbibresource{references.bib}
 \title{GPU Memory Harvesting for Global Memory Cache in Deep Learning Clusters}
 
 % Here you can change the date presented in the paper title
@@ -115,7 +120,7 @@ We leverage the following key insights in order to help define our design goals:
 	higher amount of GPU memory than is available.
 	\begin{figure}[!htbp]
 		\centering
-		\includegraphics[height=8cm, width=8cm]{figures/Offloading.drawio.png}
+		\includegraphics[height=8cm, width=8cm]{figures/Offloading.png}
 		\caption{Sequence Diagram for Offloading}
 	\end{figure}
 	\FloatBarrier
@@ -164,7 +169,7 @@ Userspace and those managed by Ravenstore as those lying in Ravenspace. Applicat
 	fetch those tensors beforehand if possible to avoid delays in Get() API call.
 
 \section{Related Work}
-\cite[][]{shuklasingularity}
+\cite{shuklasingularity}
 
 Mention Singularity, Deepspeed, Zero Infinity, Accelerate, Flexgen
 
@@ -246,7 +251,7 @@ while creating various components of our system.
 \subsection{Offloading}
 \begin{figure}[!htbp]
 	\centering
-	\includegraphics[height=8cm, width=8cm]{figures/Offloading.drawio.png}
+	\includegraphics[height=8cm, width=8cm]{figures/Offloading.png}
 	\caption{Sequence Diagram for Offloading}
 \end{figure}
 \FloatBarrier
@@ -262,9 +267,10 @@ while creating various components of our system.
 
 \section{Conclusion}
 
+\printbibliography
 
-\bibliographystyle{unsrtnat}
-\bibliography{references}  %%% Uncomment this line and comment out the ``thebibliography'' section below to use the external .bib file (using bibtex) .
+% \bibliographystyle{unsrtnat}
+% \bibliography{references}  %%% Uncomment this line and comment out the ``thebibliography'' section below to use the external .bib file (using bibtex) .
 
 
 %%% Uncomment this section and comment out the \bibliography{references} line above to use inline references.
