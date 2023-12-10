@@ -367,7 +367,7 @@ Anmol worked on the following things:
 Help in fixing memory leak bug and raising PR with bug fix. Also resolved initial comments on the PR from Amey and Alan.
 Helped in proposing initial FSM (Finite State Machine) describing states of tensors and transitions through client API calls
 of allocate, get, put and free.
-Implemented policies for caching and eviction such as FIFO, LRU, and Latency-Aware in C++ (ServerAllocator.cpp)
+Implemented policies for caching and eviction such as FIFO, LRU, and Latency-Aware in C++ (ServerAllocator.cpp). 
 Created dummy get/put API calls from Client side. The API calls were further enhanced by Hersh and Prakhar.
 On suggestion of Alan and Amey, moved the implementation of eviction policies to Python through pybind11 (manager.py).
 Modified CMAKE files to use pybind11 and further enhanced ServerAllocator.cpp code to make API calls in Python code.
