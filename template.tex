@@ -247,6 +247,13 @@ Now that our high level design is in place, we discuss some of the low level des
 while creating various components of our system.
 
 \subsection{IPC}
+Shared Memory IPC facilitates communication between the client and the server. All client operations like
+create, get, put and free are sent to the server via the IPC. We also send the physical handle for the 
+tensor back to the client via this method. While working on the project we found that we need
+callbacks to the client for our offboarding and perfetching cases. Hence we created another Shared Memory IPC 
+that we use to send callbacks to the client. The client has a callback handler that parses the requests and the 
+parameters just like the Request handler for the IPC. Another related change that we had to make was to pass
+client PID with every request so that we can use that PID for callbacks to the client.
 
 \subsection{Offloading}
 \begin{figure}[!htbp]
@@ -256,8 +263,20 @@ while creating various components of our system.
 \end{figure}
 \FloatBarrier
 
-\subsection{Prefetching}
+Offloading is the process of moving tensors from the GPU memory to RAM. When we have a situation where we do
+not have any space for any new tensors requested by the client, we make space by offloading tensors from the
+GPU memory to RAM. Our cache policy keeps track of the tensors and provides eviction candidates. We then 
+evict those tensors to allow the new tensor to allocate space in the GPU.
 
+Post offloading when we need can get the tensor back when it is prefetched or via the GET call. In both the cases,
+reallocation of the tensor happens and we get a new physical handle that the current virtual pointer does not point
+to yet. Hence once we offload a tensor, we need to provide a callback to the client stating that the virtual pointer
+for this tensor is now invalid and that we need to fetch the new tensor pointer again in order to give back to the user.
+
+Hence, this way we are able to move tensors between the memory heirarchy and can them back up on demand.
+
+\subsection{Prefetching}
+N
 
 
 \section{Evaluation and Benchmarks}
