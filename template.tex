@@ -108,10 +108,9 @@ We leverage the following key insights in order to help define our design goals:
 	Hence, there is a need for a way to address the issue of limited memory without hampering model's training and performance.
 	\begin{figure}[!htbp]
 		\centering
-		\includegraphics[height=6cm, width=7cm]{figures/AlibabaUtil.png}
-		\caption{Sequence Diagram for Offloading}
+		\includegraphics[height=4cm, width=6cm]{figures/teraflops.png}
+		\caption{GPU FLOPS vs Memory Growth}
 	\end{figure}
-	\FloatBarrier
 
 	\subsubsection{Highly Skewed Memory Utilization}
 	Even though workloads suffer from memory bottlenecks, several studies have shown that, in production clusters, memory utilization
@@ -120,8 +119,8 @@ We leverage the following key insights in order to help define our design goals:
 	higher amount of GPU memory than is available.
 	\begin{figure}[!htbp]
 		\centering
-		\includegraphics[height=8cm, width=8cm]{figures/Offloading.png}
-		\caption{Sequence Diagram for Offloading}
+		\includegraphics[height=5cm, width=6cm]{figures/AlibabaUtil.png}
+		\caption{GPU Memory Utilization in Alibaba's Production Cluster}
 	\end{figure}
 	\FloatBarrier
 
@@ -317,7 +316,7 @@ on a single GPU is ready with few caveats as discussed later. We now plan
 to extend to Multi-GPU setting with enhancements discussed in following subsection. 
 Furthermore, with ravenstore APIs of get and put in place and heavy abstraction of what
 happens inside ravenstore from client, there would be no changes needed from the client's end
-in order to extend to multi-GPU design.
+in order to extend to multi-GPU design. In the following subsections we also discuss some pain points in the current implementation.
 
 \subsection{Multi GPU Design}
 We would extend to multi-GPU design with few more enhancements like enhancing 
@@ -351,12 +350,18 @@ went away.
 
 \section{Conclusion}
 
+Our focus on single-GPU memory harvesting serves as a foundational step, with extensions to multi-GPU scenarios. Through the demonstration of 
+techniques such as eviction, prefetching of tensors, and the measurement of Ravenstore's overhead during model training, we provide practical insights into the viability and effectiveness of Memory Harvesting.
+
+In summary, our Memory Harvesting technique represents a crucial advancement in addressing the challenges posed by limited GPU memory, offering a promising avenue 
+for training large models despite stringent memory constraints. As deep learning continues to evolve, optimizing GPU memory utilization will play a pivotal role 
+in unlocking the full potential of advanced models and pushing the boundaries of computational capabilities.
+
 \section{Statement of Collaborator Contribution}
 \subsection{Hersh Dhillon (AA, PJ)}
-
+Conducted a literature review of existing work in the area of memory harvesting and caching and derived insights to set up the project.
 Created a test bench for testing out physical and virtual memory mapping in CUDA.
-Created the GET and PUT calls in both the client and the server side based on the inital code written by Anmol.
-Created tests for the GET and PUT calls (MemoryHarvestingTests.cpp).
+Created the GET and PUT calls in both the client and the server side based on the inital code written by Anmol and created tests for it.
 Worked on Pytorch Extension Bindings for the client side. This is still a work in progress since it still does not work as intended.
 Created prefetching based on the older design (with client callbacks). The idea was to have all client data on the client and not let server make copies of data while taking out the tensors from RAM. However we decided to change our design to take care of MemCpy in the server side itself.
 Removing data copying and callbacks from the client side for our design change. Changed the eviction mapping construct in the client to a ReplacedHandle construct to mark the tensors where the physical handle got changed due to offloading.
