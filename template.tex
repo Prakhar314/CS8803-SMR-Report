@@ -262,9 +262,9 @@ client PID with every request so that we can use that PID for callbacks to the c
 \end{figure}
 \FloatBarrier
 
-Offloading is the process of moving tensors from the GPU memory to RAM. When we have a situation where we do
+Offloading is the process of moving tensors from the high memory tier to a lower memory tier, in this case from the GPU memory to RAM. When we have a situation where we do
 not have any space for any new tensors requested by the client, we make space by offloading tensors from the
-GPU memory to RAM. Our cache policy keeps track of the tensors and provides eviction candidates. We then 
+GPU memory to RAM. Our cache policy keeps track of the tensors and provides eviction candidates based on the policy (FIFO, LRU or Latency Aware). We then 
 evict those tensors to allow the new tensor to allocate space in the GPU.
 
 Post offloading when we need can get the tensor back when it is prefetched or via the GET call. In both the cases,
@@ -275,7 +275,24 @@ for this tensor is now invalid and that we need to fetch the new tensor pointer 
 Hence, this way we are able to move tensors between the memory heirarchy and can them back up on demand.
 
 \subsection{Prefetching}
-N
+\begin{figure}[!htbp]
+	\centering
+	\includegraphics[height=8cm, width=8cm]{figures/Prefetch.png}
+	\caption{Sequence Diagram for Prefetching}
+\end{figure}
+\FloatBarrier
+
+Prefetching is the process in moving tensors back in to a higher memory tier from a lower memory tier, before they are needed. In our case it is moving tensors back into GPU memory from RAM.
+This is done in alongside other computations in order to save time taken by the expensive IO call. When a tensor in the userspace is freed, it leaves us with space
+that we can can use to store other tensors. Instead of allocating that tensor and copying data when the tensor is called we can do it beforehand based on a policy. Prefetching is also
+crucial for our work since eager prefetching forms the basis of our goal of achieving high GPU memory utilization.
+
+Whener a Free call is made on the on the server side, this includes all clients as well as all the other tensors we are intercepting, we run a defer a prefetch call. This calls the cache policy
+which provides the prefetching candidates based on the policy and the size left. For latency aware caching for example, we always supply next access time for a tensor
+in the PUT call itself. Hence we know when the tensor is going to be accessed next. Hence we can prefetch based on the next access time and prefetch the one with the earliest next access time.
+
+When the client does a GET call on this tensor it the client knows to get the new handle fron the server since the older one was invalidated when the tensor was offloaded. But since we have already
+added this tensor back to the GPU memory, we save on the expensive IO call and hence save time.
 
 
 \section{Evaluation and Benchmarks}
