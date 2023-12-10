@@ -312,7 +312,7 @@ In the following subsections, we will describe the results of the above experime
 \subsubsection{Prefetching Overhead}
 
 \section{Future Work}
-Having implemented basic and core components like eviction, enhancement of IPC, offloading tensors and prefetching, memory harvesting
+Having implemented core components like eviction, enhancement of IPC, offloading tensors and prefetching, memory harvesting
 on a single GPU is ready with few caveats as discussed later. We now plan
 to extend to Multi-GPU setting with enhancements discussed in following subsection. 
 Furthermore, with ravenstore APIs of get and put in place and heavy abstraction of what
@@ -353,6 +353,13 @@ went away.
 
 \section{Statement of Collaborator Contribution}
 \subsection{Hersh Dhillon (AA, PJ)}
+
+Created a test bench for testing out physical and virtual memory mapping in CUDA.
+Created the GET and PUT calls in both the client and the server side based on the inital code written by Anmol.
+Created tests for the GET and PUT calls (MemoryHarvestingTests.cpp).
+Worked on Pytorch Bindings for the client side. This is still a work in progress since it still does not work as intended.
+Created prefetching based on the older design (with client callbacks). The idea was to have all client data on the client and not let server make copies of data while taking out the tensors from RAM. However we decided to change our design to take care of MemCpy in the server side itself.
+
 \subsection{Prakhar Jagwani (HD, AA)}
 \subsection{Anmol Agarwal (PJ, HD)}
 Anmol worked on the following things:
