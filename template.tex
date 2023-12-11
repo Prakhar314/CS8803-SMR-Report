@@ -398,6 +398,20 @@ Created prefetching based on the older design (with client callbacks). The idea 
 Removing data copying and callbacks from the client side for our design change. Changed the eviction mapping construct in the client to a ReplacedHandle construct to mark the tensors where the physical handle got changed due to offloading.
 
 \subsection{Prakhar Jagwani (HD, AA)}
+Found memory leak bug, investigated root cause and fixed the bug.
+Helped in designing FSM describing client API calls. 
+Implemented offloading of tensors to RAM from GPU when performing eviction, and modified
+IPC code to support callbacks to clients for whom tensors are evicted. The support for callbacks
+was added by creating separate SHM channels for each client, with separate thread for each client listening for callbacks.
+Wrote test cases to test eviction and prefetching mechanism.
+Enhanced Get() API call to bring back evicted tensors from GPU to RAM when clients need them.
+Implemented new design for prefetching after discussion with team members, which didn't
+involve callbacks when prefetching tensors back to GPU from RAM. Virtual Handle was needed to
+bring tensor back to GPU, and earlier, clients had those virtual handles. Instead of that, enhanced
+Server to create its own virtual handles for moving tensors to and from GPU.
+Also wrote test cases to perform evalution of virtual memory overhead and eviction/prefetching overhead.
+Performed evaluation of three types as mentioned in evaluation section and analyzed results.
+
 \subsection{Anmol Agarwal (PJ, HD)}
 Anmol worked on the following things:
 Help in fixing memory leak bug and raising PR with bug fix. Also resolved initial comments on the PR from Amey and Alan.
