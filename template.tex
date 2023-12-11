@@ -261,11 +261,36 @@ while creating various components of our system.
 
 
 \section{Evaluation and Benchmarks}
+To compare the performance of our system with standard CUDA memory management, we ran the following benchmark.
+On a V100 GPU, we called the \verb|cudaMalloc| and \verb|cudaFree| APIs in a loop to allocate and free tensors of size 128B. We did the same for Ravenstore by calling the \verb|allocate| and \verb|free| APIs in a loop.
+The results are shown in the table below.
+\begin{table}[htbp]
+	\centering
+	\begin{tabular}{||c|c|c||}
+		\hline
+		\textbf{Number of Tensors} & \textbf{CUDA (ms)} & \textbf{Ravenstore (ms)} \\
+		\hline
+		\hline
+		10 & 42.34 & 68.97 \\
+		100 & 414.93 & 650.67 \\
+		1000 & 4002.99 & 6488.80 \\
+		10000 & 39879.48 & 65034.22 \\
+		\hline
+	\end{tabular}
+	\caption{Comparison of Time Taken by CUDA and Ravenstore}
+\end{table}
+
+We observe that Ravenstore is slower than CUDA by a factor of 1.6x. This is because of the overhead of IPC calls involved between the client and the server. Also, we don't see any non linear increase in time taken by Ravenstore as the number of tensors increase.
+
 
 \section{Future Work}
 \subsection{Multi GPU Design}
 
 \section{Conclusion}
+
+In this paper, we presented a high-level design and implementation of a memory harvesting technique for tensor management at the GPU level. Our system consists of a client-server architecture, where the client provides the interface to the user and the server is responsible for the physical allocation, prefetching, and eviction of tensors. We discussed the details of the client-server communication using IPC and the offloading process. We also evaluated the performance of our system compared to standard CUDA memory management through benchmarking. Although our system showed slower performance due to the overhead of IPC calls, we observed a linear increase in time taken as the number of tensors increased. 
+
+For future work, we propose exploring a multi-GPU design to further enhance the performance of our system. Overall, our memory harvesting technique provides a promising approach for efficient tensor management in GPU-based systems.
 
 \printbibliography
 
