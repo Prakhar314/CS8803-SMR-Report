@@ -446,6 +446,8 @@ Created the GET and PUT calls in both the client and the server side based on th
 Worked on Pytorch Extension Bindings for the client side. This is still a work in progress since it still does not work as intended.
 Created prefetching based on the older design (with client callbacks). The idea was to have all client data on the client and not let server make copies of data while taking out the tensors from RAM. However we decided to change our design to take care of MemCpy in the server side itself.
 Removing data copying and callbacks from the client side for our design change. Changed the eviction mapping construct in the client to a ReplacedHandle construct to mark the tensors where the physical handle got changed due to offloading.
+Contributed to the experiement design for demos and reports.
+Contributed to the report in the HLD, LLD, Related works and created figures for illustration
 
 \subsection{Prakhar Jagwani (HD, AA)}
 Found memory leak bug, investigated root cause and fixed the bug.
