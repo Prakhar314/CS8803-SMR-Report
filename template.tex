@@ -102,7 +102,7 @@ of Ravenstore when training models.
 \subsection{Motivation}
 Our Memory Harvesting technique is meant to help large models train on GPUs with limited capacity.
 We leverage the following key insights in order to help define our design goals:
-	\subsubsection{Limited Memory Growth}As shown in figure <REF>, for state of 
+	\subsubsection{Limited Memory Growth}As shown in figure \ref{fig1}, for state of 
 	art GPUs, there is drastic increase in TeraFLOPS across different GPUs, but memory increase is negligible.
 	This implies that we might be able to meet compute requirements of the models better than their memory requirements.
 	Hence, there is a need for a way to address the issue of limited memory without hampering model's training and performance.
@@ -110,18 +110,20 @@ We leverage the following key insights in order to help define our design goals:
 		\centering
 		\includegraphics[height=4cm, width=6cm]{figures/teraflops.png}
 		\caption{GPU FLOPS vs Memory Growth}
+		\label{fig1}
 	\end{figure}
 
 	\subsubsection{Highly Skewed Memory Utilization}
 	Even though workloads suffer from memory bottlenecks, several studies have shown that, in production clusters, memory utilization
-	is suboptimal. For example, as shown in figure <REF>, in Alibaba's production cluster, only 20\% of GPUs have applications
-	utilizing over 80\% of their memory. There is need to harvest underutilized GPUs to support applications requiring 
+	is suboptimal. For example, as shown in figure \ref{fig2}, in Alibaba's production cluster, only 20\% of GPUs have applications
+	utilizing over 80\% of their memory. There is a need to harvest underutilized GPUs to support applications requiring 
 	higher amount of GPU memory than is available.
 	\begin{figure}[!htbp]
 		\centering
 		\includegraphics[height=5cm, width=6cm]{figures/AlibabaUtil.png}
 		\caption{GPU Memory Utilization in Alibaba's Production Cluster}
 	\end{figure}
+	\label{fig2}
 	\FloatBarrier
 
 	\subsubsection{Naive Eviction/Prefetching Policies} In other to swap tensors out to GPU memory to give space for other tensors needed by application,
@@ -315,8 +317,27 @@ We first compared the overhead of allocating and freeing tensors through RavenSt
 calls. Then we compared the overhead caused when assigning tensors to clients after creating them by creating virtual mapping through CUDA
 Virtual Handles. Finally, we look into overhead caused when evicting tensors and offloading them to RAM, and then prefetching them from RAM.
 We describe each of these evalutions in more detail in the following sections.
-
 \subsection{Tensor Allocate/Free Overhead}
+To compare the performance of our system with standard CUDA memory management, we ran the following benchmark.
+On a V100 GPU, we called the \verb|cudaMalloc| and \verb|cudaFree| APIs in a loop to allocate and free tensors of size 128B. We did the same for Ravenstore by calling the \verb|allocate| and \verb|free| APIs in a loop.
+The results are shown in the table below.
+\begin{table}[htbp]
+	\centering
+	\begin{tabular}{||c|c|c||}
+		\hline
+		\textbf{Number of Tensors} & \textbf{CUDA (ms)} & \textbf{Ravenstore (ms)} \\
+		\hline
+		\hline
+		10 & 42.34 & 68.97 \\
+		100 & 414.93 & 650.67 \\
+		1000 & 4002.99 & 6488.80 \\
+		10000 & 39879.48 & 65034.22 \\
+		\hline
+	\end{tabular}
+	\caption{Comparison of Time Taken by CUDA and Ravenstore}
+\end{table}
+
+We observe that Ravenstore is slower than CUDA by a factor of 1.6x. This is because of the overhead of IPC calls involved between the client and the server. Also, we don't see any non linear increase in time taken by Ravenstore as the number of tensors increase.
 
 \subsection{Virtual Memory Overhead}
 When creating CUDA Virtual Handle at client's end to manage tensors, virtual memory is created and mapping from
@@ -380,7 +401,6 @@ went away.
 
 
 \section{Conclusion}
-
 Our focus on single-GPU memory harvesting serves as a foundational step, with extensions to multi-GPU scenarios. Through the demonstration of 
 techniques such as eviction, prefetching of tensors, and the measurement of Ravenstore's overhead during model training, we provide practical insights into the viability and effectiveness of Memory Harvesting.
 
@@ -398,6 +418,20 @@ Created prefetching based on the older design (with client callbacks). The idea 
 Removing data copying and callbacks from the client side for our design change. Changed the eviction mapping construct in the client to a ReplacedHandle construct to mark the tensors where the physical handle got changed due to offloading.
 
 \subsection{Prakhar Jagwani (HD, AA)}
+Found memory leak bug, investigated root cause and fixed the bug.
+Helped in designing FSM describing client API calls. 
+Implemented offloading of tensors to RAM from GPU when performing eviction, and modified
+IPC code to support callbacks to clients for whom tensors are evicted. The support for callbacks
+was added by creating separate SHM channels for each client, with separate thread for each client listening for callbacks.
+Wrote test cases to test eviction and prefetching mechanism.
+Enhanced Get() API call to bring back evicted tensors from GPU to RAM when clients need them.
+Implemented new design for prefetching after discussion with team members, which didn't
+involve callbacks when prefetching tensors back to GPU from RAM. Virtual Handle was needed to
+bring tensor back to GPU, and earlier, clients had those virtual handles. Instead of that, enhanced
+Server to create its own virtual handles for moving tensors to and from GPU.
+Also wrote test cases to perform evalution of virtual memory overhead and eviction/prefetching overhead.
+Performed evaluation of three types as mentioned in evaluation section and analyzed results.
+
 \subsection{Anmol Agarwal (PJ, HD)}
 Anmol worked on the following things:
 Help in fixing memory leak bug and raising PR with bug fix. Also resolved initial comments on the PR from Amey and Alan.
