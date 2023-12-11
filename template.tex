@@ -102,7 +102,7 @@ of Ravenstore when training models.
 \subsection{Motivation}
 Our Memory Harvesting technique is meant to help large models train on GPUs with limited capacity.
 We leverage the following key insights in order to help define our design goals:
-	\subsubsection{Limited Memory Growth}As shown in figure <REF>, for state of 
+	\subsubsection{Limited Memory Growth}As shown in figure \ref{fig1}, for state of 
 	art GPUs, there is drastic increase in TeraFLOPS across different GPUs, but memory increase is negligible.
 	This implies that we might be able to meet compute requirements of the models better than their memory requirements.
 	Hence, there is a need for a way to address the issue of limited memory without hampering model's training and performance.
@@ -110,27 +110,29 @@ We leverage the following key insights in order to help define our design goals:
 		\centering
 		\includegraphics[height=4cm, width=6cm]{figures/teraflops.png}
 		\caption{GPU FLOPS vs Memory Growth}
+		\label{fig1}
 	\end{figure}
 
 	\subsubsection{Highly Skewed Memory Utilization}
 	Even though workloads suffer from memory bottlenecks, several studies have shown that, in production clusters, memory utilization
-	is suboptimal. For example, as shown in figure <REF>, in Alibaba's production cluster, only 20\% of GPUs have applications
-	utilizing over 80\% of their memory. There is need to harvest underutilized GPUs to support applications requiring 
+	is suboptimal. For example, as shown in figure \ref{fig2}, in Alibaba's production cluster, only 20\% of GPUs have applications
+	utilizing over 80\% of their memory. There is a need to harvest underutilized GPUs to support applications requiring 
 	higher amount of GPU memory than is available.
 	\begin{figure}[!htbp]
 		\centering
 		\includegraphics[height=5cm, width=6cm]{figures/AlibabaUtil.png}
 		\caption{GPU Memory Utilization in Alibaba's Production Cluster}
 	\end{figure}
+	\label{fig2}
 	\FloatBarrier
 
 	\subsubsection{Naive Eviction/Prefetching Policies} In other to swap tensors out to GPU memory to give space for other tensors needed by application,
 	policies like LRU can be used to decide what tensors to evict. However, these policies are naive because they don't take into account the following two factors:
 	\begin{itemize}
 		\item \textbf{Heterogeneous Size of Tensors}: LRU policy might only evict tensor which was least recently used. However, 
-		if the size of this tensor was in KBs, it could have done better by evicting a larger tensor (whose size is in MBs/GBs) instead. Similarly,
-		LRU might swap out a very large tensor (running into GBs) to make space a small tensor whose size maybe in bytes.
-		\item \textbf{Latency Awareness}: The pattern of usage of tensors is quite predictive when training models [Potential Citation], and the pattern is repetitive. For example,
+		if the size of this tensor was in KBs, it could have done better by evicting a larger tensor (whose size is in MBs/GBs) instead,
+		when creating space for a large tensor. Similarly, LRU might swap out a very large tensor (running into GBs) to make space for a small tensor whose size maybe in bytes.
+		\item \textbf{Latency Awareness}: The pattern of usage of tensors is quite predictive when training models [Potential Citation], and this pattern is repetitive. For example,
 		when training a deep neural network, we can offload activations generated at each layer to CPU because they are not going to be required before backward propagation phase.
 		Now, since we know that activations which were generated most recently (i.e. from last layer), would be needed first.
 		A smart prefetching policy will know this pattern, and decide to prefetch activations starting from the last layer.
