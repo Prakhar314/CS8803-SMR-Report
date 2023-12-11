@@ -141,7 +141,7 @@ We leverage the following key insights in order to help define our design goals:
 \subsection{Design Decisions}
 With above issues in mind, we propose the following design decisions to mitigate these issues and maximize
 the utility of the system. For the sake of interpretability, we will refer to tensors not managed by Ravenstore as those lying in
-Userspace and those managed by Ravenstore as those lying in Ravenspace. Applications can only use tensors present in user space.
+Userspace and those managed by Ravenstore as those lying in Ravenspace. Applications can only use tensors present in Userspace.
 	\subsubsection{APIs}Clients/Applications are provided with the following four APIs to help manage tensors for memory harvesting purposes:
 	\begin{itemize}
 		\item \textbf{Create}: Whenever clients want new tensors, they can call create with specified size and Ravenstore will
@@ -153,7 +153,7 @@ Userspace and those managed by Ravenstore as those lying in Ravenspace. Applicat
 		\item \textbf{Free}: When clients don't need tensors at all, they can call free API to delete the tensor.
 	\end{itemize}
 	\subsubsection{Abstraction}Whatever Ravenstore with Memory Harvesting does underneath with the tensors created by applications is completely
-	unknown to them. Neither the applications should care about that. All they need is the following:
+	unknown to those applications. Neither the applications should care about that. All they need is the following:
 	\begin{itemize}
 		\item Tensors must be available to them when they call get() API.
 		\item All other APIs must work as expected without interfering with clients' program as well as the programs not managed by Ravenstore.
@@ -167,7 +167,7 @@ Userspace and those managed by Ravenstore as those lying in Ravenspace. Applicat
 	The second step, i.e., when tensor is not already present on GPU, incurs high latency when moving the tensor to GPU.
 	This will hugely increase training/inference time of models on the clients. In other to avoid that, we have prefetching mechanisms.
 	Clients will need to specify the time they will need the tensors (through Put API) again in future, and Memory Harvesting framework will
-	fetch those tensors beforehand if possible to avoid delays in Get() API call.
+	fetch those tensors beforehand if possible to avoid onboarding delays in Get() API call.
 
 \section{Related Work}
 \cite{shuklasingularity}
@@ -183,8 +183,8 @@ which helps in training large models where atleast one layers fits in the GPU me
 optimization technique called memory-centric tiling to support extremely large individual layers that would otherwise not fit in GPU memory 
 even one layer at a time.
 
-While they are all great works, they are all limited to one DL process at a time, not the entire GPU. These can lead to starvation of other
-GPU processes since they take as much GPU as possible before. We show that our solution handles this on the GPU level and provides a
+While they are all great works, they are all limited to one DL process at a time, not the entire GPU. These approaches can lead to starvation of other
+GPU processes since they take as much GPU memory as possible. We show that our solution handles this on the GPU level and provides a
 way to handle multiple processes without starvation.
 
 
@@ -197,8 +197,7 @@ way to handle multiple processes without starvation.
 We divide the space in which our tensors exist into two partitions, Userspace and Ravenspace.
 Whenever a tensor is created, it is created in the Userspace. By default all intercepted mallocs 
 are allocated in the Userspace. The tensors in the Userspace are not managed by Ravenstore. 
-The tensors allocated in the Userspace will continue to be in the GPU and accessible the handle to 
-the tensor until it is explicitly freed by the User.
+The tensors allocated in the Userspace will continue to be in the GPU and accessible to user until it is explicitly freed by the user.
 
 Ravenspace on the other hand is managed by Ravenstore. Once a tensor is put into Ravenspace the user
 can only access it again once they call the get API. The get API will bring the tensor back to the GPU if it was evicted
@@ -207,7 +206,7 @@ Ravenspace are immutable.
 
 Tensor in the Userspace are first class citizens of the system i.e. if we find that the GPU memory is full,
 we will offload the tensors from the Ravenspace to make room for them. If we still cannot allocate a tensor in Userspace,
-means that we are out of GPU memory and user has to free some of their tensors to make room.
+this means that we are out of GPU memory and user has to free some of their tensors to make room.
 
 \begin{figure}[!htbp]
 	\centering
@@ -221,7 +220,7 @@ these calls go through the Shared IPC and then the Server acts according to the 
 bringing them to GPU, deleting them, performing eviction and other actions. 
 
 \subsection{Tensor Handling}
-There are two ways in which our GPU memory management system onboards tensors
+There are two ways in which our GPU memory management system onboards tensors:
 \begin{itemize}
 	\item \textbf{Interception}: Ravenstore intercepts CUDAMalloc and CUDAFree calls from clients
 	and allocates/deallocates tensors. Here Ravenstore Interceptor comes into play. But tensors are not managed by ravenstore for memory harvesting purposes.
@@ -231,7 +230,7 @@ There are two ways in which our GPU memory management system onboards tensors
 Now we discuss high level design of memory harvesting technique implemented component wise.
 
 \subsection{Client}
-The client provides the interface to the user to make the required API calls. We have described these calles in Section 1.2.1.
+The client provides the interface to the user to make the required API calls. We have described these calls in Section 1.2.1.
 The client stores the virtual pointers to all the tensors that are created by the user via the Create call. The virtual pointer is
 responsible for setting the access to the tensor. We can specify the access to a tensor in READ\_ONLY or READ\_WRITE mode. 
 Trying to access or free a tensor in Ravenspace will lead to an exception since when putting a tensor into Ravenspace implies letting our
@@ -242,7 +241,7 @@ The client makes calls to the server via the IPC since they are two different pr
 \subsection{Server}
 The server is responsible for the physical allocation of the tensors, prefetching and eviction of tensors.
 The server is connected to a base client that is connected to the interceptor. The intercepted tensors are
-never put in the Ravenspace. Interception implies that the tensors belong the a process that is not Ravenstore managed i.e.
+never put in the Ravenspace. Interception implies that the tensors belong to a process that is not Ravenstore managed i.e.
 they are always in userspace for their lifetime.
 We still need to keep track of all the tensors since we are attempting to do tensor management at GPU level, i.e. all tensors
 need to be tracked.
