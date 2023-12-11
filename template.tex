@@ -369,13 +369,6 @@ The results are shown in the table below.
 
 We observe that Ravenstore is slower than CUDA by a factor of 1.6x. This is because of the overhead of IPC calls involved between the client and the server. Also, we don't see any non linear increase in time taken by Ravenstore as the number of tensors increase.
 
-\subsection{Virtual Memory Overhead}
-When creating CUDA Virtual Handle at client's end to manage tensors, virtual memory is created and mapping from
-virtual address space to physical address space is done. We perform experiments to show that we get a virtual memory overhead
-of 300 MBs for each client, and that memory overhead doesn't change as we increase the number of tensors, but it increases linearly
-with the number of clients on the same GPU. The reason might be that underlying CUDA implementation creates page tables to map virtual address space
-to physical address space, that page table might be occupying large amount of space in GPU.
-
 \subsection{Eviction and Prefetching Overhead}
 In section 5.1, we described the overhead of RavenStore when performing allocate and free API calls and compared that overhead with 
 native CUDAMalloc and CUDAFree calls. In this section, we also describe the overhead we get when evicting tensors and prefetching them.
