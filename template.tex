@@ -102,36 +102,37 @@ of Ravenstore when training models.
 \subsection{Motivation}
 Our Memory Harvesting technique is meant to help large models train on GPUs with limited capacity.
 We leverage the following key insights in order to help define our design goals:
-	\subsubsection{Limited Memory Growth}As shown in figure <REF>, for state of 
+	\subsubsection{Limited Memory Growth}As shown in figure \ref{fig1}, for state of 
 	art GPUs, there is drastic increase in TeraFLOPS across different GPUs, but memory increase is negligible.
 	This implies that we might be able to meet compute requirements of the models better than their memory requirements.
 	Hence, there is a need for a way to address the issue of limited memory without hampering model's training and performance.
 	\begin{figure}[!htbp]
 		\centering
-		\includegraphics[height=6cm, width=7cm]{figures/AlibabaUtil.png}
-		\caption{Sequence Diagram for Offloading}
+		\includegraphics[height=4cm, width=6cm]{figures/teraflops.png}
+		\caption{GPU FLOPS vs Memory Growth}
+		\label{fig1}
 	\end{figure}
-	\FloatBarrier
 
 	\subsubsection{Highly Skewed Memory Utilization}
 	Even though workloads suffer from memory bottlenecks, several studies have shown that, in production clusters, memory utilization
-	is suboptimal. For example, as shown in figure <REF>, in Alibaba's production cluster, only 20\% of GPUs have applications
-	utilizing over 80\% of their memory. There is need to harvest underutilized GPUs to support applications requiring 
+	is suboptimal. For example, as shown in figure \ref{fig2}, in Alibaba's production cluster, only 20\% of GPUs have applications
+	utilizing over 80\% of their memory. There is a need to harvest underutilized GPUs to support applications requiring 
 	higher amount of GPU memory than is available.
 	\begin{figure}[!htbp]
 		\centering
-		\includegraphics[height=8cm, width=8cm]{figures/Offloading.png}
-		\caption{Sequence Diagram for Offloading}
+		\includegraphics[height=5cm, width=6cm]{figures/AlibabaUtil.png}
+		\caption{GPU Memory Utilization in Alibaba's Production Cluster}
 	\end{figure}
+	\label{fig2}
 	\FloatBarrier
 
 	\subsubsection{Naive Eviction/Prefetching Policies} In other to swap tensors out to GPU memory to give space for other tensors needed by application,
 	policies like LRU can be used to decide what tensors to evict. However, these policies are naive because they don't take into account the following two factors:
 	\begin{itemize}
 		\item \textbf{Heterogeneous Size of Tensors}: LRU policy might only evict tensor which was least recently used. However, 
-		if the size of this tensor was in KBs, it could have done better by evicting a larger tensor (whose size is in MBs/GBs) instead. Similarly,
-		LRU might swap out a very large tensor (running into GBs) to make space a small tensor whose size maybe in bytes.
-		\item \textbf{Latency Awareness}: The pattern of usage of tensors is quite predictive when training models [Potential Citation], and the pattern is repetitive. For example,
+		if the size of this tensor was in KBs, it could have done better by evicting a larger tensor (whose size is in MBs/GBs) instead,
+		when creating space for a large tensor. Similarly, LRU might swap out a very large tensor (running into GBs) to make space for a small tensor whose size maybe in bytes.
+		\item \textbf{Latency Awareness}: The pattern of usage of tensors is quite predictive when training models [Potential Citation], and this pattern is repetitive. For example,
 		when training a deep neural network, we can offload activations generated at each layer to CPU because they are not going to be required before backward propagation phase.
 		Now, since we know that activations which were generated most recently (i.e. from last layer), would be needed first.
 		A smart prefetching policy will know this pattern, and decide to prefetch activations starting from the last layer.
@@ -171,7 +172,21 @@ Userspace and those managed by Ravenstore as those lying in Ravenspace. Applicat
 \section{Related Work}
 \cite{shuklasingularity}
 
-Mention Singularity, Deepspeed, Zero Infinity, Accelerate, Flexgen
+Recent deep learning training systems built for training large language models like ZeRO and FSDP use sharding and offloading of 
+GPU memory to CPU memory or NVMe drives to reduce the active memory pressure in DL workloads. However, these solutions are highly customized 
+for specific workloads and require non-trivial engineering efforts to support new applications. Systems like GPUSwap and CUDA unified 
+memory can be utilized to build a general-purpose offloading system, however, these systems utilize simple cache eviction strategies 
+like random or LRU and not take advantage of the predictable access patterns of DL workloads.
+
+There are other works that implementation offloading. Accelerate is a library available on HuggingFace that does layer by layer offloading 
+which helps in training large models where atleast one layers fits in the GPU memory at a time. ZeRO-Infinity introduces a novel GPU memory 
+optimization technique called memory-centric tiling to support extremely large individual layers that would otherwise not fit in GPU memory 
+even one layer at a time.
+
+While they are all great works, they are all limited to one DL process at a time, not the entire GPU. These can lead to starvation of other
+GPU processes since they take as much GPU as possible before. We show that our solution handles this on the GPU level and provides a
+way to handle multiple processes without starvation.
+
 
 \section{High Level Design}
 \begin{figure}[!htbp]
@@ -247,6 +262,13 @@ Now that our high level design is in place, we discuss some of the low level des
 while creating various components of our system.
 
 \subsection{IPC}
+Shared Memory IPC facilitates communication between the client and the server. All client operations like
+create, get, put and free are sent to the server via the IPC. We also send the physical handle for the 
+tensor back to the client via this method. While working on the project we found that we need
+callbacks to the client for our offboarding and perfetching cases. Hence we created another Shared Memory IPC 
+that we use to send callbacks to the client. The client has a callback handler that parses the requests and the 
+parameters just like the Request handler for the IPC. Another related change that we had to make was to pass
+client PID with every request so that we can use that PID for callbacks to the client.
 
 \subsection{Offloading}
 \begin{figure}[!htbp]
@@ -256,11 +278,46 @@ while creating various components of our system.
 \end{figure}
 \FloatBarrier
 
-\subsection{Prefetching}
+Offloading is the process of moving tensors from the high memory tier to a lower memory tier, in this case from the GPU memory to RAM. When we have a situation where we do
+not have any space for any new tensors requested by the client, we make space by offloading tensors from the
+GPU memory to RAM. Our cache policy keeps track of the tensors and provides eviction candidates based on the policy (FIFO, LRU or Latency Aware). We then 
+evict those tensors to allow the new tensor to allocate space in the GPU.
 
+Post offloading when we need can get the tensor back when it is prefetched or via the GET call. In both the cases,
+reallocation of the tensor happens and we get a new physical handle that the current virtual pointer does not point
+to yet. Hence once we offload a tensor, we need to provide a callback to the client stating that the virtual pointer
+for this tensor is now invalid and that we need to fetch the new tensor pointer again in order to give back to the user.
+
+Hence, this way we are able to move tensors between the memory heirarchy and can them back up on demand.
+
+\subsection{Prefetching}
+\begin{figure}[!htbp]
+	\centering
+	\includegraphics[height=8cm, width=8cm]{figures/Prefetch.png}
+	\caption{Sequence Diagram for Prefetching}
+\end{figure}
+\FloatBarrier
+
+Prefetching is the process in moving tensors back in to a higher memory tier from a lower memory tier, before they are needed. In our case it is moving tensors back into GPU memory from RAM.
+This is done in alongside other computations in order to save time taken by the expensive IO call. When a tensor in the userspace is freed, it leaves us with space
+that we can can use to store other tensors. Instead of allocating that tensor and copying data when the tensor is called we can do it beforehand based on a policy. Prefetching is also
+crucial for our work since eager prefetching forms the basis of our goal of achieving high GPU memory utilization.
+
+Whener a Free call is made on the on the server side, this includes all clients as well as all the other tensors we are intercepting, we run a defer a prefetch call. This calls the cache policy
+which provides the prefetching candidates based on the policy and the size left. For latency aware caching for example, we always supply next access time for a tensor
+in the PUT call itself. Hence we know when the tensor is going to be accessed next. Hence we can prefetch based on the next access time and prefetch the one with the earliest next access time.
+
+When the client does a GET call on this tensor it the client knows to get the new handle fron the server since the older one was invalidated when the tensor was offloaded. But since we have already
+added this tensor back to the GPU memory, we save on the expensive IO call and hence save time.
 
 
 \section{Evaluation and Benchmarks}
+After implementing memory harvesting on a single GPU, we wanted to see the overhead of various types caused in RavenStore.
+We first compared the overhead of allocating and freeing tensors through RavenStore as compared with simple CUDAMalloc and CUDAFree
+calls. Then we compared the overhead caused when assigning tensors to clients after creating them by creating virtual mapping through CUDA
+Virtual Handles. Finally, we look into overhead caused when evicting tensors and offloading them to RAM, and then prefetching them from RAM.
+We describe each of these evalutions in more detail in the following sections.
+\subsection{Tensor Allocate/Free Overhead}
 To compare the performance of our system with standard CUDA memory management, we ran the following benchmark.
 On a V100 GPU, we called the \verb|cudaMalloc| and \verb|cudaFree| APIs in a loop to allocate and free tensors of size 128B. We did the same for Ravenstore by calling the \verb|allocate| and \verb|free| APIs in a loop.
 The results are shown in the table below.
@@ -282,15 +339,119 @@ The results are shown in the table below.
 
 We observe that Ravenstore is slower than CUDA by a factor of 1.6x. This is because of the overhead of IPC calls involved between the client and the server. Also, we don't see any non linear increase in time taken by Ravenstore as the number of tensors increase.
 
+\subsection{Virtual Memory Overhead}
+When creating CUDA Virtual Handle at client's end to manage tensors, virtual memory is created and mapping from
+virtual address space to physical address space is done. We perform experiments to show that we get a virtual memory overhead
+of 300 MBs for each client, and that memory overhead doesn't change as we increase the number of tensors, but it increases linearly
+with the number of clients on the same GPU. The reason might be that underlying CUDA implementation creates page tables to map virtual address space
+to physical address space, that page table might be occupying large amount of space in GPU.
+
+\subsection{Eviction and Prefetching Overhead}
+In section 5.1, we described the overhead of RavenStore when performing allocate and free API calls and compared that overhead with 
+native CUDAMalloc and CUDAFree calls. In this section, we also describe the overhead we get when evicting tensors and prefetching them.
+When evicting a tensor, two things happen: 1) Callback takes place to remove mapping on that tensor created by client, and 2) Server
+offloads that tensor from GPU to RAM. Similarly, when prefetching tensor, Server has to create physical handle on the available space of
+size required by tensor to be prefetched, and then tensor is moved back to GPU from RAM through CUDAMemcpy API.
+To measure that, we create 2 processes. First process allocates the tensors of a specific size to fill the entire GPU memory. Once the entire GPU
+memory space is filled, we launch second process which will also allocate tensors of same size. But since tensors of process 1 occupy space, they would
+need to be evicted. This will cause overhead due to eviction. Furthermore, once we are done allocating all tensors of process 2, we will start freeing them.
+Once we call free() for each tensor, tensors of first process which got evicted will now start coming back to GPU memory, i.e., prefetching for those
+tensors will happen. This will help us measure overhead caused due to prefetching by comparing with time taken to simply free tensors without prefetching.
+In the following subsections, we will describe the results of the above experiment.
+
+\subsubsection{Eviction Overhead}
+\subsubsection{Prefetching Overhead}
 
 \section{Future Work}
+Having implemented core components like eviction, enhancement of IPC, offloading tensors and prefetching, memory harvesting
+on a single GPU is ready with few caveats as discussed later. We now plan
+to extend to Multi-GPU setting with enhancements discussed in following subsection. 
+Furthermore, with ravenstore APIs of get and put in place and heavy abstraction of what
+happens inside ravenstore from client, there would be no changes needed from the client's end
+in order to extend to multi-GPU design. In the following subsections we also discuss some pain points in the current implementation.
+
 \subsection{Multi GPU Design}
+We would extend to multi-GPU design with few more enhancements like enhancing 
+eviction logic to also find the GPU to which the tensor can be offloaded instead
+of simply offloading tensor to RAM, and in the scenario when no GPU is available
+then we can simply offload to RAM. Furthermore, we would require additional data structures
+to keep track of tensors stored across different GPUs so that we can fetch them to the GPU
+where the client using those tensors is running. Once that is done, we won't require
+any other changes to extend to multi-GPU design.
+
+\subsection{PyTorch Binding}
+Currently, clients explicitly need to make get() and put() calls to help RavenStore
+manage tensors on their behalf. In order to train real world ML models written in PyTorch,
+we would need to incorporate get/put calls during their training and inference. For that, we
+plan to use torch.CUDAExtension. Implementation to extend PyTorch to work with RavenStore is complete,
+however, we need to test our implementation and resolve any issues if needed.
+
+\subsection{Current Limitations}
+There are few limitations inherent in RavenStore due to limitations of CUDA APIs described as follows.
+We plan to address these limitations, if possible, in future.
+\subsubsection{Virtual Memory Overhead}
+When creating CUDA Virtual Handles to manage CUDA tensors, additional space of approximately 300MBs is occupied 
+for each client. We suspect that CUDA implementation creates page tables for each client to manage virtual memory.
+So we will need to factor in that overhead caused when creating virtual memory.
+\subsubsection{Latency in CUDAMemcpy}
+During our experiments, after we evicted a particular tensor and called CUDAMemcpy to offload that tensor to RAM from GPU,
+we couldn't immediately allocate new tensor of same size. We suspect that some time is needed for internal state of CUDA implementation
+after we free the memory space in GPU. So after we imposed a time gap of 100 ms between eviction and allocation of new tensor, that error
+went away.
+
 
 \section{Conclusion}
+Our focus on single-GPU memory harvesting serves as a foundational step, with extensions to multi-GPU scenarios. Through the demonstration of 
+techniques such as eviction, prefetching of tensors, and the measurement of Ravenstore's overhead during model training, we provide practical insights into the viability and effectiveness of Memory Harvesting.
 
-In this paper, we presented a high-level design and implementation of a memory harvesting technique for tensor management at the GPU level. Our system consists of a client-server architecture, where the client provides the interface to the user and the server is responsible for the physical allocation, prefetching, and eviction of tensors. We discussed the details of the client-server communication using IPC and the offloading process. We also evaluated the performance of our system compared to standard CUDA memory management through benchmarking. Although our system showed slower performance due to the overhead of IPC calls, we observed a linear increase in time taken as the number of tensors increased. 
+In summary, our Memory Harvesting technique represents a crucial advancement in addressing the challenges posed by limited GPU memory, offering a promising avenue 
+for training large models despite stringent memory constraints. As deep learning continues to evolve, optimizing GPU memory utilization will play a pivotal role 
+in unlocking the full potential of advanced models and pushing the boundaries of computational capabilities.
 
-For future work, we propose exploring a multi-GPU design to further enhance the performance of our system. Overall, our memory harvesting technique provides a promising approach for efficient tensor management in GPU-based systems.
+\section{Statement of Collaborator Contribution}
+\subsection{Hersh Dhillon (AA, PJ)}
+Conducted a literature review of existing work in the area of memory harvesting and caching and derived insights to set up the project.
+Created a test bench for testing out physical and virtual memory mapping in CUDA.
+Created the GET and PUT calls in both the client and the server side based on the inital code written by Anmol and created tests for it.
+Worked on Pytorch Extension Bindings for the client side. This is still a work in progress since it still does not work as intended.
+Created prefetching based on the older design (with client callbacks). The idea was to have all client data on the client and not let server make copies of data while taking out the tensors from RAM. However we decided to change our design to take care of MemCpy in the server side itself.
+Removing data copying and callbacks from the client side for our design change. Changed the eviction mapping construct in the client to a ReplacedHandle construct to mark the tensors where the physical handle got changed due to offloading.
+
+\subsection{Prakhar Jagwani (HD, AA)}
+Found memory leak bug, investigated root cause and fixed the bug.
+Helped in designing FSM describing client API calls. 
+Implemented offloading of tensors to RAM from GPU when performing eviction, and modified
+IPC code to support callbacks to clients for whom tensors are evicted. The support for callbacks
+was added by creating separate SHM channels for each client, with separate thread for each client listening for callbacks.
+Wrote test cases to test eviction and prefetching mechanism.
+Enhanced Get() API call to bring back evicted tensors from GPU to RAM when clients need them.
+Implemented new design for prefetching after discussion with team members, which didn't
+involve callbacks when prefetching tensors back to GPU from RAM. Virtual Handle was needed to
+bring tensor back to GPU, and earlier, clients had those virtual handles. Instead of that, enhanced
+Server to create its own virtual handles for moving tensors to and from GPU.
+Also wrote test cases to perform evalution of virtual memory overhead and eviction/prefetching overhead.
+Performed evaluation of three types as mentioned in evaluation section and analyzed results.
+
+\subsection{Anmol Agarwal (PJ, HD)}
+Anmol worked on the following things:
+Help in fixing memory leak bug and raising PR with bug fix. Also resolved initial comments on the PR from Amey and Alan.
+Helped in proposing initial FSM (Finite State Machine) describing states of tensors and transitions through client API calls
+of allocate, get, put and free.
+Implemented policies for caching and eviction such as FIFO, LRU, and Latency-Aware in C++ (ServerAllocator.cpp). 
+Created dummy get/put API calls from Client side. The API calls were further enhanced by Hersh and Prakhar.
+On suggestion of Alan and Amey, moved the implementation of eviction policies to Python through pybind11 (manager.py).
+Modified CMAKE files to use pybind11 and further enhanced ServerAllocator.cpp code to make API calls in Python code.
+Also implemented prefetching policies in Python by inconporating latency awareness using sortedcontainers library.
+Helped in proposing new design to implement Prefetching mechanism and avoid callbacks to clients when doing prefetching.
+Callbacks were earlier needed to map tensors from client's side and moving them back to GPU through virtual handle. But instead,
+we decided to create virtual handle from Server to move tensors to GPU, hence avoiding callbacks.
+Helped in integrating prefetching functionality inside ServerAllocator.cpp and resolve bugs related to prefetching mechanisms.
+Collaborated with team members and helped in demo and project report (specifically in sections like Introduction, High Level Design,
+Evaluation and Benchmarks, and Future Work).
+Helped in designing experiment (more specifically experiment measuring Eviction and Prefetching Overhead).
+
+\section{Project Artifacts}
+Our project repository can be found here : \url{https://github.gatech.edu/cs8803smr-f23/research13}
 
 \printbibliography
 
