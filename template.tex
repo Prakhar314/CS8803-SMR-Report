@@ -262,7 +262,7 @@ while creating various components of our system.
 
 \subsection{IPC}
 Shared Memory IPC facilitates communication between the client and the server. All client operations like
-create, get, put and free are sent to the server via the IPC. We also send the physical handle for the 
+allocate, get, put and free are sent to the server via the IPC. We also send the physical handle for the 
 tensor back to the client via this method. While working on the project we found that we need
 callbacks to the client for our offboarding and perfetching cases. Hence we created another Shared Memory IPC 
 that we use to send callbacks to the client. The client has a callback handler that parses the requests and the 
@@ -297,8 +297,8 @@ Hence, this way we are able to move tensors between the memory heirarchy and can
 \end{figure}
 \FloatBarrier
 
-Prefetching is the process in moving tensors back in to a higher memory tier from a lower memory tier, before they are needed. In our case it is moving tensors back into GPU memory from RAM.
-This is done in alongside other computations in order to save time taken by the expensive IO call. When a tensor in the userspace is freed, it leaves us with space
+Prefetching is the process of moving tensors back in to a higher memory tier from a lower memory tier, before they are needed. In our case it is moving tensors back into GPU memory from RAM.
+This is done alongside other computations in order to save time taken by the expensive IO call. When a tensor in the userspace is freed, it leaves us with space
 that we can can use to store other tensors. Instead of allocating that tensor and copying data when the tensor is called we can do it beforehand based on a policy. Prefetching is also
 crucial for our work since eager prefetching forms the basis of our goal of achieving high GPU memory utilization.
 
@@ -338,28 +338,31 @@ The results are shown in the table below.
 
 We observe that Ravenstore is slower than CUDA by a factor of 1.6x. This is because of the overhead of IPC calls involved between the client and the server. Also, we don't see any non linear increase in time taken by Ravenstore as the number of tensors increase.
 
-\subsection{Virtual Memory Overhead}
-When creating CUDA Virtual Handle at client's end to manage tensors, virtual memory is created and mapping from
-virtual address space to physical address space is done. We perform experiments to show that we get a virtual memory overhead
-of 300 MBs for each client, and that memory overhead doesn't change as we increase the number of tensors, but it increases linearly
-with the number of clients on the same GPU. The reason might be that underlying CUDA implementation creates page tables to map virtual address space
-to physical address space, that page table might be occupying large amount of space in GPU.
-
-\subsection{Eviction and Prefetching Overhead}
+\subsection{Eviction Overhead}
 In section 5.1, we described the overhead of RavenStore when performing allocate and free API calls and compared that overhead with 
-native CUDAMalloc and CUDAFree calls. In this section, we also describe the overhead we get when evicting tensors and prefetching them.
+native CUDAMalloc and CUDAFree calls. In this section, we also describe the overhead we get when evicting tensors.
 When evicting a tensor, two things happen: 1) Callback takes place to remove mapping on that tensor created by client, and 2) Server
-offloads that tensor from GPU to RAM. Similarly, when prefetching tensor, Server has to create physical handle on the available space of
-size required by tensor to be prefetched, and then tensor is moved back to GPU from RAM through CUDAMemcpy API.
+offloads that tensor from GPU to RAM.
 To measure that, we create 2 processes. First process allocates the tensors of a specific size to fill the entire GPU memory. Once the entire GPU
 memory space is filled, we launch second process which will also allocate tensors of same size. But since tensors of process 1 occupy space, they would
-need to be evicted. This will cause overhead due to eviction. Furthermore, once we are done allocating all tensors of process 2, we will start freeing them.
-Once we call free() for each tensor, tensors of first process which got evicted will now start coming back to GPU memory, i.e., prefetching for those
-tensors will happen. This will help us measure overhead caused due to prefetching by comparing with time taken to simply free tensors without prefetching.
-In the following subsections, we will describe the results of the above experiment.
+need to be evicted. This will cause overhead due to eviction.
 
-\subsubsection{Eviction Overhead}
-\subsubsection{Prefetching Overhead}
+\begin{table}[htbp]
+	\centering
+	\begin{tabular}{||c|c|c||}
+		\hline
+		\textbf{Size of Tensor (MB)} & \textbf{Without Eviction} & \textbf{With Eviction} \\
+		\hline
+		\hline
+		16 & 0.52 & 6.485 \\
+		32 & 1.0625 & 9.28 \\
+		\hline
+	\end{tabular}
+	\caption{Comparison of Time Taken when Allocating Tensors with/without Eviction}
+\end{table}
+
+We observe that when allocating tensors of size 16 MB, the overhead due to eviction is 6.485 ms, and when allocating tensors of size 32 MB, the overhead due to eviction is 9.28 ms.
+We can optimize this overhead by parallelizing offloading process and eviction callback process. Currently, we are doing them sequentially.
 
 \section{Future Work}
 Having implemented core components like eviction, enhancement of IPC, offloading tensors and prefetching, memory harvesting
@@ -429,7 +432,7 @@ involve callbacks when prefetching tensors back to GPU from RAM. Virtual Handle 
 bring tensor back to GPU, and earlier, clients had those virtual handles. Instead of that, enhanced
 Server to create its own virtual handles for moving tensors to and from GPU.
 Also wrote test cases to perform evalution of virtual memory overhead and eviction/prefetching overhead.
-Performed evaluation of three types as mentioned in evaluation section and analyzed results.
+Performed evaluation of types as mentioned in evaluation section and analyzed results.
 
 \subsection{Anmol Agarwal (PJ, HD)}
 Anmol worked on the following things:
