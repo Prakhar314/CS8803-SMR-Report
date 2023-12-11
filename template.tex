@@ -170,13 +170,13 @@ Userspace and those managed by Ravenstore as those lying in Ravenspace. Applicat
 \section{Related Work}
 \cite{shuklasingularity}
 
-Recent deep learning training systems built for training large language models like ZeRO [1, 2] and FSDP [3, 4] use sharding and offloading of 
+Recent deep learning training systems built for training large language models like ZeRO and FSDP use sharding and offloading of 
 GPU memory to CPU memory or NVMe drives to reduce the active memory pressure in DL workloads. However, these solutions are highly customized 
-for specific workloads and require non-trivial engineering efforts to support new applications. Systems like GPUSwap [12]  and CUDA unified 
-memory [8]  can be utilized to build a general-purpose offloading system, however, these systems utilize simple cache eviction strategies 
+for specific workloads and require non-trivial engineering efforts to support new applications. Systems like GPUSwap and CUDA unified 
+memory can be utilized to build a general-purpose offloading system, however, these systems utilize simple cache eviction strategies 
 like random or LRU and not take advantage of the predictable access patterns of DL workloads.
 
-There are other works that implementation offloading. Accelerate is a library available on huggingface that does layer by layer offloading 
+There are other works that implementation offloading. Accelerate is a library available on HuggingFace that does layer by layer offloading 
 which helps in training large models where atleast one layers fits in the GPU memory at a time. ZeRO-Infinity introduces a novel GPU memory 
 optimization technique called memory-centric tiling to support extremely large individual layers that would otherwise not fit in GPU memory 
 even one layer at a time.
